@@ -36,6 +36,7 @@ SSH_PORT=22
 NGINX_HTTP_PORT=80
 NGINX_HTTPS_PORT=443
 XRAY_INTERNAL_PORT=10000
+XRAY_PROFILE_NAME=Bokn
 DOMAIN=
 EMAIL=
 XRAY_UUID=
@@ -62,6 +63,7 @@ load_state() {
   NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-80}"
   NGINX_HTTPS_PORT="${NGINX_HTTPS_PORT:-443}"
   XRAY_INTERNAL_PORT="${XRAY_INTERNAL_PORT:-10000}"
+  XRAY_PROFILE_NAME="${XRAY_PROFILE_NAME:-Bokn}"
   DOMAIN="${DOMAIN:-}"
   EMAIL="${EMAIL:-}"
   XRAY_UUID="${XRAY_UUID:-}"
@@ -85,6 +87,7 @@ SSH_PORT=${SSH_PORT}
 NGINX_HTTP_PORT=${NGINX_HTTP_PORT}
 NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT}
 XRAY_INTERNAL_PORT=${XRAY_INTERNAL_PORT}
+XRAY_PROFILE_NAME=${XRAY_PROFILE_NAME}
 DOMAIN=${DOMAIN}
 EMAIL=${EMAIL}
 XRAY_UUID=${XRAY_UUID}
@@ -109,6 +112,11 @@ on_off() {
   else
     printf "[OFF]"
   fi
+}
+
+random_profile_name() {
+  # Nombre corto aleatorio para perfiles V2Ray/Xray.
+  printf "Bokn%s" "$(tr -dc 'a-z0-9' </dev/urandom | head -c 4)"
 }
 
 socks_log() {
@@ -579,6 +587,18 @@ install_xray() {
 }
 
 configure_xray_vless_ws() {
+  local profile_name_in
+  clear
+  echo "========================================================"
+  echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
+  echo "========================================================"
+  read -r -p "NOMBRE [Bokn]: " profile_name_in
+  if [[ -z "${profile_name_in}" ]]; then
+    XRAY_PROFILE_NAME="$(random_profile_name)"
+  else
+    XRAY_PROFILE_NAME="${profile_name_in}"
+  fi
+
   read -r -p "Dominio para SSL/WebSocket (ej. vpn.tudominio.com): " domain_in
   read -r -p "Correo para Let's Encrypt: " email_in
   read -r -p "Puerto interno Xray (actual ${XRAY_INTERNAL_PORT}): " xray_port_in
@@ -852,7 +872,7 @@ show_connection_info() {
   echo "--------------------------------------------------------"
   if [[ -n "${XRAY_UUID:-}" && -n "${DOMAIN:-}" ]]; then
     echo "URL VLESS sugerida:"
-    echo "vless://${XRAY_UUID}@${DOMAIN}:${NGINX_HTTPS_PORT}?encryption=none&security=tls&type=ws&host=${DOMAIN}&path=%2Fvless#VPN-PANEL"
+    echo "vless://${XRAY_UUID}@${DOMAIN}:${NGINX_HTTPS_PORT}?encryption=none&security=tls&type=ws&host=${DOMAIN}&path=%2Fvless#${XRAY_PROFILE_NAME}"
   else
     echo "Aun no hay perfil VLESS generado."
   fi
