@@ -49,6 +49,8 @@ SOCKS_PY2_SIMPLE_ENABLED=0
 SOCKS_PY3_SIMPLE_ENABLED=0
 SOCKS_PY3_DIRECT_ENABLED=0
 INITIAL_HARDENED=0
+SOCKS_CUSTOM_HEADER=Default
+SOCKS_MINIBANNER=Default
 EOF
 }
 
@@ -73,6 +75,8 @@ load_state() {
   SOCKS_PY3_SIMPLE_ENABLED="${SOCKS_PY3_SIMPLE_ENABLED:-0}"
   SOCKS_PY3_DIRECT_ENABLED="${SOCKS_PY3_DIRECT_ENABLED:-0}"
   INITIAL_HARDENED="${INITIAL_HARDENED:-0}"
+  SOCKS_CUSTOM_HEADER="${SOCKS_CUSTOM_HEADER:-Default}"
+  SOCKS_MINIBANNER="${SOCKS_MINIBANNER:-Default}"
 }
 
 save_state() {
@@ -94,6 +98,8 @@ SOCKS_PY2_SIMPLE_ENABLED=${SOCKS_PY2_SIMPLE_ENABLED}
 SOCKS_PY3_SIMPLE_ENABLED=${SOCKS_PY3_SIMPLE_ENABLED}
 SOCKS_PY3_DIRECT_ENABLED=${SOCKS_PY3_DIRECT_ENABLED}
 INITIAL_HARDENED=${INITIAL_HARDENED}
+SOCKS_CUSTOM_HEADER=${SOCKS_CUSTOM_HEADER}
+SOCKS_MINIBANNER=${SOCKS_MINIBANNER}
 EOF
 }
 
@@ -516,7 +522,7 @@ show_connection_info() {
 }
 
 configure_socks_python2() {
-  local opt manual_port status_in input_port
+  local opt manual_port status_in input_port custom_header_in
   load_state
   ensure_socks_runtime
   clear
@@ -594,17 +600,54 @@ configure_socks_python2() {
     SOCKS_RESPONSE_STATUS=200
   fi
 
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
+  echo "========================================================"
+  echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+  echo
+  echo "TRAFICO REDIRIGIDO AL PUERTO: ${SOCKS_REDIRECT_PORT}"
+  echo
+  echo "RESPUESTA: ${SOCKS_RESPONSE_STATUS}"
+  echo
+  echo 'Ej: \r\nContent-length: 0\r\n\r\nHTTP/1.1 200 Connection Established\r\n\r\n'
+  echo
+  read -r -p "ENCABESADO PERSONALIZADO: " custom_header_in
+  if [[ -z "${custom_header_in}" ]]; then
+    SOCKS_CUSTOM_HEADER="Default"
+  else
+    SOCKS_CUSTOM_HEADER="${custom_header_in}"
+  fi
+  SOCKS_MINIBANNER="Default"
+
   setup_socks_forward_service "${SOCKS_PORT}" "${SOCKS_REDIRECT_PORT}"
   SOCKS_ENABLED=1
   refresh_socks_global_status
-  socks_log "SOCKS PYTHON2 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS}"
+  socks_log "SOCKS PYTHON2 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS} header=${SOCKS_CUSTOM_HEADER}"
   save_state
-  log "SOCKS configurado: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
-  read -r -p "Enter para volver..."
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
+  echo "========================================================"
+  echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+  echo
+  echo "TRAFICO REDIRIGIDO AL PUERTO: ${SOCKS_REDIRECT_PORT}"
+  echo
+  echo "RESPUESTA: ${SOCKS_RESPONSE_STATUS}"
+  echo
+  echo "ENCABESADO: ${SOCKS_CUSTOM_HEADER^^}"
+  echo
+  echo "MINIBANNER: ${SOCKS_MINIBANNER^^}"
+  echo "--------------------------------------------------------"
+  echo "    systemctl daemon-reload...........OK"
+  echo "    systemctl start python.${SOCKS_PORT}.......OK"
+  echo "    systemctl enable python.${SOCKS_PORT}......OK"
+  echo "========================================================"
+  read -r -p ">> Presione enter para continuar <<" _
 }
 
 configure_socks_python3_direct() {
-  local opt manual_port status_in input_port
+  local opt manual_port status_in input_port custom_header_in
   load_state
   ensure_socks_runtime
   clear
@@ -683,14 +726,51 @@ configure_socks_python3_direct() {
     SOCKS_RESPONSE_STATUS=200
   fi
 
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON3 DIRECTO"
+  echo "========================================================"
+  echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+  echo
+  echo "TRAFICO REDIRIGIDO AL PUERTO: ${SOCKS_REDIRECT_PORT}"
+  echo
+  echo "RESPUESTA: ${SOCKS_RESPONSE_STATUS}"
+  echo
+  echo 'Ej: \r\nContent-length: 0\r\n\r\nHTTP/1.1 200 Connection Established\r\n\r\n'
+  echo
+  read -r -p "ENCABESADO PERSONALIZADO: " custom_header_in
+  if [[ -z "${custom_header_in}" ]]; then
+    SOCKS_CUSTOM_HEADER="Default"
+  else
+    SOCKS_CUSTOM_HEADER="${custom_header_in}"
+  fi
+  SOCKS_MINIBANNER="Default"
+
   setup_socks_forward_service "${SOCKS_PORT}" "${SOCKS_REDIRECT_PORT}"
   SOCKS_PY3_DIRECT_ENABLED=1
   SOCKS_ENABLED=1
   refresh_socks_global_status
-  socks_log "SOCKS PYTHON3 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS}"
+  socks_log "SOCKS PYTHON3 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS} header=${SOCKS_CUSTOM_HEADER}"
   save_state
-  log "SOCKS PYTHON3 DIRECTO configurado: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
-  read -r -p "Enter para volver..."
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON3 DIRECTO"
+  echo "========================================================"
+  echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+  echo
+  echo "TRAFICO REDIRIGIDO AL PUERTO: ${SOCKS_REDIRECT_PORT}"
+  echo
+  echo "RESPUESTA: ${SOCKS_RESPONSE_STATUS}"
+  echo
+  echo "ENCABESADO: ${SOCKS_CUSTOM_HEADER^^}"
+  echo
+  echo "MINIBANNER: ${SOCKS_MINIBANNER^^}"
+  echo "--------------------------------------------------------"
+  echo "    systemctl daemon-reload...........OK"
+  echo "    systemctl start python.${SOCKS_PORT}.......OK"
+  echo "    systemctl enable python.${SOCKS_PORT}......OK"
+  echo "========================================================"
+  read -r -p ">> Presione enter para continuar <<" _
 }
 
 install_python_modules() {
