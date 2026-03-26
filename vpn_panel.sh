@@ -842,14 +842,14 @@ configure_socks_python2() {
   else
     SOCKS_CUSTOM_HEADER="${custom_header_in}"
   fi
-  if [[ "${SOCKS_RESPONSE_STATUS}" == "101" ]]; then
-    read -r -p "BANNER PERSONALIZADO (Enter=Default): " banner_in
-    if [[ -z "${banner_in}" ]]; then
-      SOCKS_MINIBANNER="Default"
-    else
-      SOCKS_MINIBANNER="${banner_in}"
-    fi
+  read -r -p "BANNER PERSONALIZADO (Enter=Default): " banner_in
+  if [[ -z "${banner_in}" ]]; then
+    SOCKS_MINIBANNER="Default"
   else
+    SOCKS_MINIBANNER="${banner_in}"
+  fi
+  if [[ "${SOCKS_RESPONSE_STATUS}" != "101" ]]; then
+    # Fuera de modo WS se conserva por compatibilidad visual, pero no se usa en trafico.
     SOCKS_MINIBANNER="Default"
   fi
 
@@ -978,14 +978,14 @@ configure_socks_python3_direct() {
   else
     SOCKS_CUSTOM_HEADER="${custom_header_in}"
   fi
-  if [[ "${SOCKS_RESPONSE_STATUS}" == "101" ]]; then
-    read -r -p "BANNER PERSONALIZADO (Enter=Default): " banner_in
-    if [[ -z "${banner_in}" ]]; then
-      SOCKS_MINIBANNER="Default"
-    else
-      SOCKS_MINIBANNER="${banner_in}"
-    fi
+  read -r -p "BANNER PERSONALIZADO (Enter=Default): " banner_in
+  if [[ -z "${banner_in}" ]]; then
+    SOCKS_MINIBANNER="Default"
   else
+    SOCKS_MINIBANNER="${banner_in}"
+  fi
+  if [[ "${SOCKS_RESPONSE_STATUS}" != "101" ]]; then
+    # Fuera de modo WS se conserva por compatibilidad visual, pero no se usa en trafico.
     SOCKS_MINIBANNER="Default"
   fi
 
