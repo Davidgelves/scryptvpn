@@ -42,6 +42,9 @@ XRAY_UUID=
 SOCKS_PORT=88
 SOCKS_REDIRECT_PORT=22
 SOCKS_RESPONSE_STATUS=101
+SOCKS_ENABLED=0
+XRAY_ENABLED=0
+NGINX_ENABLED=0
 EOF
 }
 
@@ -49,6 +52,19 @@ load_state() {
   [[ -f "${STATE_FILE}" ]] || default_state
   # shellcheck disable=SC1090
   source "${STATE_FILE}"
+  SSH_PORT="${SSH_PORT:-22}"
+  NGINX_HTTP_PORT="${NGINX_HTTP_PORT:-80}"
+  NGINX_HTTPS_PORT="${NGINX_HTTPS_PORT:-443}"
+  XRAY_INTERNAL_PORT="${XRAY_INTERNAL_PORT:-10000}"
+  DOMAIN="${DOMAIN:-}"
+  EMAIL="${EMAIL:-}"
+  XRAY_UUID="${XRAY_UUID:-}"
+  SOCKS_PORT="${SOCKS_PORT:-88}"
+  SOCKS_REDIRECT_PORT="${SOCKS_REDIRECT_PORT:-22}"
+  SOCKS_RESPONSE_STATUS="${SOCKS_RESPONSE_STATUS:-101}"
+  SOCKS_ENABLED="${SOCKS_ENABLED:-0}"
+  XRAY_ENABLED="${XRAY_ENABLED:-0}"
+  NGINX_ENABLED="${NGINX_ENABLED:-0}"
 }
 
 save_state() {
@@ -63,7 +79,18 @@ XRAY_UUID=${XRAY_UUID}
 SOCKS_PORT=${SOCKS_PORT}
 SOCKS_REDIRECT_PORT=${SOCKS_REDIRECT_PORT}
 SOCKS_RESPONSE_STATUS=${SOCKS_RESPONSE_STATUS}
+SOCKS_ENABLED=${SOCKS_ENABLED}
+XRAY_ENABLED=${XRAY_ENABLED}
+NGINX_ENABLED=${NGINX_ENABLED}
 EOF
+}
+
+on_off() {
+  if [[ "$1" == "1" ]]; then
+    printf "[ON]"
+  else
+    printf "[OFF]"
+  fi
 }
 
 require_cmd() {
@@ -79,6 +106,8 @@ install_base_packages() {
   apt-get install -y curl wget unzip jq nginx socat cron openssl ca-certificates gnupg lsb-release certbot python3-certbot-nginx
   systemctl enable nginx
   systemctl start nginx
+  NGINX_ENABLED=1
+  save_state
   log "Paquetes base instalados."
 }
 
@@ -348,6 +377,8 @@ EOF
   systemctl restart xray
   systemctl reload nginx
 
+  XRAY_ENABLED=1
+  NGINX_ENABLED=1
   save_state
   log "Xray + WebSocket + SSL configurado."
 }
@@ -449,6 +480,7 @@ configure_socks_python2() {
     SOCKS_RESPONSE_STATUS=200
   fi
 
+  SOCKS_ENABLED=1
   save_state
   log "SOCKS configurado: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
   read -r -p "Enter para volver..."
@@ -467,13 +499,13 @@ protocol_menu() {
     echo "--------------------------------------------------------"
     echo "[1] AJUSTES SSH         [ON]   [10] SQUID             [OFF]"
     echo "[2] DROPBEAR            [OFF]  [11] OPENVPN           [OFF]"
-    echo "[3] SOCKS PYTHON        [ON]   [12] CHECKUSER ONLINE  [OFF]"
-    echo "[4] STUNNEL (SSL)       [OFF]  [13] ATKEN and HASH    [OFF]"
-    echo "[5] SLOWDNS             [ON]   [14] FILEBROWSER       [OFF]"
-    echo "[6] WS-EPRO             [OFF]  [15] V2RAY/XRAY        [ON]"
+    echo "[3] SOCKS PYTHON        $(on_off "${SOCKS_ENABLED}")   [12] CHECKUSER ONLINE  [OFF]"
+    echo "[4] STUNNEL (SSL)       $(on_off "${NGINX_ENABLED}")   [13] ATKEN and HASH    [OFF]"
+    echo "[5] SLOWDNS             [OFF]  [14] FILEBROWSER       [OFF]"
+    echo "[6] WS-EPRO             [OFF]  [15] V2RAY/XRAY        $(on_off "${XRAY_ENABLED}")"
     echo "[7] UDP-CUSTOM          [OFF]  [16] SSHGO             [OFF]"
-    echo "[8] UDP-HYSTERIA        [ON]   [17] WIREGUARD         [OFF]"
-    echo "[9] BADVPN-UDPGW        [ON]"
+    echo "[8] UDP-HYSTERIA        [OFF]  [17] WIREGUARD         [OFF]"
+    echo "[9] BADVPN-UDPGW        [OFF]"
     echo
     echo "[18] INSTALAR/ACTUALIZAR NGINX"
     echo "[19] MOSTRAR DATOS DE CONEXION"
