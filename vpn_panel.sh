@@ -745,7 +745,7 @@ show_connection_info() {
 }
 
 configure_socks_python2() {
-  local opt manual_port status_in input_port custom_header_in
+  local opt manual_port status_in input_port custom_header_in banner_in
   load_state
   detect_ssh_port
   ensure_socks_runtime
@@ -842,7 +842,16 @@ configure_socks_python2() {
   else
     SOCKS_CUSTOM_HEADER="${custom_header_in}"
   fi
-  SOCKS_MINIBANNER="Default"
+  if [[ "${SOCKS_RESPONSE_STATUS}" == "101" ]]; then
+    read -r -p "BANNER PERSONALIZADO (Enter=Default): " banner_in
+    if [[ -z "${banner_in}" ]]; then
+      SOCKS_MINIBANNER="Default"
+    else
+      SOCKS_MINIBANNER="${banner_in}"
+    fi
+  else
+    SOCKS_MINIBANNER="Default"
+  fi
 
   setup_socks_forward_service "${SOCKS_PORT}" "${SOCKS_REDIRECT_PORT}"
   SOCKS_ENABLED=1
@@ -871,7 +880,7 @@ configure_socks_python2() {
 }
 
 configure_socks_python3_direct() {
-  local opt manual_port status_in input_port custom_header_in
+  local opt manual_port status_in input_port custom_header_in banner_in
   load_state
   detect_ssh_port
   ensure_socks_runtime
@@ -969,7 +978,16 @@ configure_socks_python3_direct() {
   else
     SOCKS_CUSTOM_HEADER="${custom_header_in}"
   fi
-  SOCKS_MINIBANNER="Default"
+  if [[ "${SOCKS_RESPONSE_STATUS}" == "101" ]]; then
+    read -r -p "BANNER PERSONALIZADO (Enter=Default): " banner_in
+    if [[ -z "${banner_in}" ]]; then
+      SOCKS_MINIBANNER="Default"
+    else
+      SOCKS_MINIBANNER="${banner_in}"
+    fi
+  else
+    SOCKS_MINIBANNER="Default"
+  fi
 
   setup_socks_forward_service "${SOCKS_PORT}" "${SOCKS_REDIRECT_PORT}"
   SOCKS_PY3_DIRECT_ENABLED=1
