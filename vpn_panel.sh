@@ -604,11 +604,93 @@ configure_socks_python2() {
 }
 
 configure_socks_python3_direct() {
-  configure_socks_python2
+  local opt manual_port status_in input_port
+  load_state
+  ensure_socks_runtime
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON3 DIRECTO"
+  echo "========================================================"
+  read -r -p "INGRESA EL PUERTO: " input_port
+  if [[ -z "${input_port}" ]]; then
+    input_port=80
+  fi
+  if ! [[ "${input_port}" =~ ^[0-9]+$ ]] || (( input_port < 1 || input_port > 65535 )); then
+    err "Puerto invalido."
+    sleep 1
+    return 1
+  fi
+  SOCKS_PORT="${input_port}"
+
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON3 DIRECTO"
+  echo "========================================================"
+  echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+  echo "--------------------------------------------------------"
+  echo "A QUE PUERTO SERA REDIRIGIDO EL TRAFICO?"
+  echo
+  echo "[1] > python2...............................8080"
+  echo "[2] > sshd..................................22"
+  echo "[3] > v2ray.................................443"
+  echo "[4] > v2ray.................................80"
+  echo
+  echo "[0] CANCELAR                [5] INGRESA MANUALMENTE"
+  echo "--------------------------------------------------------"
+  read -r -p "Ingresa una opcion: " opt
+
+  case "${opt}" in
+    1) SOCKS_REDIRECT_PORT=8080 ;;
+    2) SOCKS_REDIRECT_PORT=22 ;;
+    3) SOCKS_REDIRECT_PORT=443 ;;
+    4) SOCKS_REDIRECT_PORT=80 ;;
+    5)
+      read -r -p "Ingresa puerto manual de redireccion: " manual_port
+      if ! [[ "${manual_port}" =~ ^[0-9]+$ ]] || (( manual_port < 1 || manual_port > 65535 )); then
+        err "Puerto manual invalido."
+        sleep 1
+        return 1
+      fi
+      SOCKS_REDIRECT_PORT="${manual_port}"
+    ;;
+    0) return 0 ;;
+    *) warn "Opcion invalida."; sleep 1; return 1 ;;
+  esac
+
+  # Solo solicita estado HTTP cuando redirige a 80/443 (escenario WS/HTTP).
+  if [[ "${SOCKS_REDIRECT_PORT}" == "443" || "${SOCKS_REDIRECT_PORT}" == "80" ]]; then
+    clear
+    echo "========================================================"
+    echo "         CONFIGURAR SOCKS PYTHON3 DIRECTO"
+    echo "========================================================"
+    echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+    echo
+    echo "TRAFICO REDIRIGIDO AL PUERTO: ${SOCKS_REDIRECT_PORT}"
+    echo
+    echo "Enter aplica configuracion predeterminada (200)"
+    echo "101 para websocket"
+    echo
+    read -r -p "IGRESA UN ESTADO DE RESPUESTA: " status_in
+    if [[ -z "${status_in}" ]]; then
+      SOCKS_RESPONSE_STATUS=200
+    elif [[ "${status_in}" =~ ^[0-9]+$ ]] && (( status_in >= 100 && status_in <= 599 )); then
+      SOCKS_RESPONSE_STATUS="${status_in}"
+    else
+      warn "Estado invalido. Se usa 200."
+      SOCKS_RESPONSE_STATUS=200
+    fi
+  else
+    SOCKS_RESPONSE_STATUS=200
+  fi
+
+  setup_socks_forward_service "${SOCKS_PORT}" "${SOCKS_REDIRECT_PORT}"
   SOCKS_PY3_DIRECT_ENABLED=1
+  SOCKS_ENABLED=1
   refresh_socks_global_status
   socks_log "SOCKS PYTHON3 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS}"
   save_state
+  log "SOCKS PYTHON3 DIRECTO configurado: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
+  read -r -p "Enter para volver..."
 }
 
 install_python_modules() {
