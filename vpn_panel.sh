@@ -722,24 +722,16 @@ xray_log_size_mb() {
 xray_menu() {
   load_state
   if ! command -v xray >/dev/null 2>&1; then
-    local install_now
     clear
     echo "========================================================"
     echo "              ADMINISTRADOR V2RAY Y XRAY"
     echo "========================================================"
     echo "XRAY no esta instalado."
-    read -r -p "Deseas instalar XRAY ahora? (si/no): " install_now
-    if [[ "${install_now}" == "si" ]]; then
-      install_xray
-      XRAY_ENABLED=1
-      save_state
-      log "XRAY instalado. Ahora configura dominio desde [1] o [12]."
-      sleep 1
-    else
-      warn "Instalacion cancelada."
-      sleep 1
-      return 0
-    fi
+    install_xray
+    XRAY_ENABLED=1
+    save_state
+    log "XRAY instalado. Ahora configura dominio desde [1] o [12]."
+    sleep 1
   fi
 
   while true; do
