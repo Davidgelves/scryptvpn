@@ -603,7 +603,7 @@ install_xray() {
 }
 
 configure_xray_vless_ws() {
-  local profile_name_in core_opt core_label xray_port_in domain_in email_in proto_opt proto_label net_opt net_label
+  local profile_name_in core_opt core_label xray_port_in domain_in email_in proto_opt proto_label net_opt net_label use_rand_path custom_path_in
   clear
   echo "========================================================"
   echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
@@ -699,6 +699,34 @@ configure_xray_vless_ws() {
   [[ -z "${domain_in}" ]] && { err "Dominio requerido."; return 1; }
   email_in="admin@${domain_in}"
   XRAY_WS_PATH="$(random_ws_path)"
+  clear
+  echo "========================================================"
+  echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
+  echo "========================================================"
+  echo "NOMBRE: ${XRAY_PROFILE_NAME}"
+  echo
+  echo "TIPO: ${core_label}"
+  echo
+  echo "PUERTO: ${xray_port_in}"
+  echo
+  echo "PROTOCOLO: ${XRAY_PROTOCOL}"
+  echo
+  echo "RED: ${XRAY_NETWORK}"
+  echo
+  echo "HOST WEBSOCKET: ${domain_in}"
+  echo "--------------------------------------------------------"
+  read -r -p "usar este path rand? ${XRAY_WS_PATH} [S/N]: " use_rand_path
+  if [[ "${use_rand_path}" == "n" || "${use_rand_path}" == "N" ]]; then
+    read -r -p "Ingresa path personalizado (ej. /miws): " custom_path_in
+    if [[ -z "${custom_path_in}" ]]; then
+      XRAY_WS_PATH="${XRAY_WS_PATH}"
+    else
+      if [[ "${custom_path_in}" != /* ]]; then
+        custom_path_in="/${custom_path_in}"
+      fi
+      XRAY_WS_PATH="${custom_path_in}"
+    fi
+  fi
 
   if ! [[ "${xray_port_in}" =~ ^[0-9]+$ ]] || (( xray_port_in < 1 || xray_port_in > 65535 )); then
     err "Puerto interno invalido."
