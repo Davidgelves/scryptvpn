@@ -486,6 +486,55 @@ configure_socks_python2() {
   read -r -p "Enter para volver..."
 }
 
+socks_python_menu() {
+  while true; do
+    load_state
+    clear
+    echo "========================================================"
+    echo "             ADMINISTRADOR DE SOCKS PYTHON"
+    echo "========================================================"
+    echo "PUERTOS: 8080 ${SOCKS_PORT}"
+    echo "--------------------------------------------------------"
+    echo "[1] SOCKS PYTHON2 SIMPLE   [OFF]"
+    echo "[2] SOCKS PYTHON3 SIMPLE   [OFF]"
+    echo "[3] SOCKS PYTHON2 DIRECTO  $(on_off "${SOCKS_ENABLED}")"
+    echo "[4] SOCKS PYTHON3 DIRECTO  [OFF]"
+    echo
+    echo "[5] REINSTALAR MODULOS PYTHON"
+    echo
+    echo "[6] ESTADO DE SERVICIOS"
+    echo
+    echo "[7] DETENER TODO LOS PUERTO Y SERVICIOS"
+    echo "[8] DETENER UN PUERTO"
+    echo
+    echo "[0] VOLVER                 [9] LOGS Y REGISTROS"
+    echo "--------------------------------------------------------"
+    read -r -p "Ingresa una opcion: " opt
+    case "${opt}" in
+      3) configure_socks_python2 ;;
+      6)
+        echo "SOCKS PYTHON2 DIRECTO: $(on_off "${SOCKS_ENABLED}")"
+        echo "Puerto local: ${SOCKS_PORT}"
+        echo "Redireccion: ${SOCKS_REDIRECT_PORT}"
+        echo "Status HTTP: ${SOCKS_RESPONSE_STATUS}"
+        read -r -p "Enter para volver..."
+      ;;
+      7)
+        SOCKS_ENABLED=0
+        save_state
+        warn "Se marcaron servicios SOCKS como detenidos."
+        sleep 1
+      ;;
+      0) break ;;
+      1|2|4|5|8|9)
+        warn "Modulo en desarrollo."
+        sleep 1
+      ;;
+      *) warn "Opcion invalida." ; sleep 1 ;;
+    esac
+  done
+}
+
 protocol_menu() {
   while true; do
     load_state
@@ -514,7 +563,7 @@ protocol_menu() {
     read -r -p "Ingresa una opcion: " opt
     case "${opt}" in
       1) configure_ssh_port ;;
-      3) configure_socks_python2 ;;
+      3) socks_python_menu ;;
       15) configure_xray_vless_ws ;;
       18) install_base_packages ;;
       19) show_connection_info ;;
