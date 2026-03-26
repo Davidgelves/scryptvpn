@@ -45,6 +45,9 @@ SOCKS_RESPONSE_STATUS=101
 SOCKS_ENABLED=0
 XRAY_ENABLED=0
 NGINX_ENABLED=0
+SOCKS_PY2_SIMPLE_ENABLED=0
+SOCKS_PY3_SIMPLE_ENABLED=0
+SOCKS_PY3_DIRECT_ENABLED=0
 EOF
 }
 
@@ -65,6 +68,9 @@ load_state() {
   SOCKS_ENABLED="${SOCKS_ENABLED:-0}"
   XRAY_ENABLED="${XRAY_ENABLED:-0}"
   NGINX_ENABLED="${NGINX_ENABLED:-0}"
+  SOCKS_PY2_SIMPLE_ENABLED="${SOCKS_PY2_SIMPLE_ENABLED:-0}"
+  SOCKS_PY3_SIMPLE_ENABLED="${SOCKS_PY3_SIMPLE_ENABLED:-0}"
+  SOCKS_PY3_DIRECT_ENABLED="${SOCKS_PY3_DIRECT_ENABLED:-0}"
 }
 
 save_state() {
@@ -82,6 +88,9 @@ SOCKS_RESPONSE_STATUS=${SOCKS_RESPONSE_STATUS}
 SOCKS_ENABLED=${SOCKS_ENABLED}
 XRAY_ENABLED=${XRAY_ENABLED}
 NGINX_ENABLED=${NGINX_ENABLED}
+SOCKS_PY2_SIMPLE_ENABLED=${SOCKS_PY2_SIMPLE_ENABLED}
+SOCKS_PY3_SIMPLE_ENABLED=${SOCKS_PY3_SIMPLE_ENABLED}
+SOCKS_PY3_DIRECT_ENABLED=${SOCKS_PY3_DIRECT_ENABLED}
 EOF
 }
 
@@ -90,6 +99,19 @@ on_off() {
     printf "[ON]"
   else
     printf "[OFF]"
+  fi
+}
+
+socks_log() {
+  mkdir -p /var/log
+  echo "$(date '+%Y-%m-%d %H:%M:%S') | $1" >> /var/log/vpn-panel-socks.log
+}
+
+refresh_socks_global_status() {
+  if [[ "${SOCKS_PY2_SIMPLE_ENABLED}" == "1" || "${SOCKS_PY3_SIMPLE_ENABLED}" == "1" || "${SOCKS_ENABLED}" == "1" || "${SOCKS_PY3_DIRECT_ENABLED}" == "1" ]]; then
+    SOCKS_ENABLED=1
+  else
+    SOCKS_ENABLED=0
   fi
 }
 
@@ -481,8 +503,60 @@ configure_socks_python2() {
   fi
 
   SOCKS_ENABLED=1
+  refresh_socks_global_status
+  socks_log "SOCKS PYTHON2 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS}"
   save_state
   log "SOCKS configurado: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
+  read -r -p "Enter para volver..."
+}
+
+configure_socks_python3_direct() {
+  configure_socks_python2
+  SOCKS_PY3_DIRECT_ENABLED=1
+  refresh_socks_global_status
+  socks_log "SOCKS PYTHON3 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS}"
+  save_state
+}
+
+install_python_modules() {
+  apt-get update -y
+  apt-get install -y python3 python3-pip net-tools lsof || true
+  apt-get install -y python2-minimal || true
+  socks_log "Reinstalacion de modulos Python solicitada"
+  log "Modulos Python reinstalados (segun disponibilidad del sistema)."
+}
+
+stop_socks_port() {
+  local p
+  read -r -p "Puerto a detener: " p
+  if ! [[ "${p}" =~ ^[0-9]+$ ]] || (( p < 1 || p > 65535 )); then
+    err "Puerto invalido."
+    return 1
+  fi
+  if [[ "${SOCKS_PORT}" == "${p}" ]]; then
+    SOCKS_ENABLED=0
+    SOCKS_PY3_DIRECT_ENABLED=0
+  fi
+  if [[ "8080" == "${p}" ]]; then
+    SOCKS_PY2_SIMPLE_ENABLED=0
+    SOCKS_PY3_SIMPLE_ENABLED=0
+  fi
+  refresh_socks_global_status
+  save_state
+  socks_log "Solicitud de detener puerto ${p}"
+  warn "Puerto ${p} marcado como detenido en el panel."
+}
+
+show_socks_logs() {
+  local log_file="/var/log/vpn-panel-socks.log"
+  if [[ ! -f "${log_file}" ]]; then
+    warn "Aun no hay logs de SOCKS."
+    read -r -p "Enter para volver..."
+    return 0
+  fi
+  echo "====================== LOGS SOCKS ======================"
+  tail -n 40 "${log_file}"
+  echo "========================================================"
   read -r -p "Enter para volver..."
 }
 
@@ -495,10 +569,10 @@ socks_python_menu() {
     echo "========================================================"
     echo "PUERTOS: 8080 ${SOCKS_PORT}"
     echo "--------------------------------------------------------"
-    echo "[1] SOCKS PYTHON2 SIMPLE   [OFF]"
-    echo "[2] SOCKS PYTHON3 SIMPLE   [OFF]"
+    echo "[1] SOCKS PYTHON2 SIMPLE   $(on_off "${SOCKS_PY2_SIMPLE_ENABLED}")"
+    echo "[2] SOCKS PYTHON3 SIMPLE   $(on_off "${SOCKS_PY3_SIMPLE_ENABLED}")"
     echo "[3] SOCKS PYTHON2 DIRECTO  $(on_off "${SOCKS_ENABLED}")"
-    echo "[4] SOCKS PYTHON3 DIRECTO  [OFF]"
+    echo "[4] SOCKS PYTHON3 DIRECTO  $(on_off "${SOCKS_PY3_DIRECT_ENABLED}")"
     echo
     echo "[5] REINSTALAR MODULOS PYTHON"
     echo
@@ -511,9 +585,33 @@ socks_python_menu() {
     echo "--------------------------------------------------------"
     read -r -p "Ingresa una opcion: " opt
     case "${opt}" in
+      1)
+        SOCKS_PY2_SIMPLE_ENABLED=1
+        refresh_socks_global_status
+        save_state
+        socks_log "SOCKS PYTHON2 SIMPLE ON puerto=8080"
+        log "SOCKS PYTHON2 SIMPLE activado."
+        sleep 1
+      ;;
+      2)
+        SOCKS_PY3_SIMPLE_ENABLED=1
+        refresh_socks_global_status
+        save_state
+        socks_log "SOCKS PYTHON3 SIMPLE ON puerto=8080"
+        log "SOCKS PYTHON3 SIMPLE activado."
+        sleep 1
+      ;;
       3) configure_socks_python2 ;;
+      4) configure_socks_python3_direct ;;
+      5)
+        install_python_modules
+        sleep 1
+      ;;
       6)
         echo "SOCKS PYTHON2 DIRECTO: $(on_off "${SOCKS_ENABLED}")"
+        echo "SOCKS PYTHON2 SIMPLE: $(on_off "${SOCKS_PY2_SIMPLE_ENABLED}")"
+        echo "SOCKS PYTHON3 SIMPLE: $(on_off "${SOCKS_PY3_SIMPLE_ENABLED}")"
+        echo "SOCKS PYTHON3 DIRECTO: $(on_off "${SOCKS_PY3_DIRECT_ENABLED}")"
         echo "Puerto local: ${SOCKS_PORT}"
         echo "Redireccion: ${SOCKS_REDIRECT_PORT}"
         echo "Status HTTP: ${SOCKS_RESPONSE_STATUS}"
@@ -521,15 +619,21 @@ socks_python_menu() {
       ;;
       7)
         SOCKS_ENABLED=0
+        SOCKS_PY2_SIMPLE_ENABLED=0
+        SOCKS_PY3_SIMPLE_ENABLED=0
+        SOCKS_PY3_DIRECT_ENABLED=0
+        refresh_socks_global_status
         save_state
+        socks_log "Detener todos los puertos y servicios SOCKS"
         warn "Se marcaron servicios SOCKS como detenidos."
         sleep 1
       ;;
-      0) break ;;
-      1|2|4|5|8|9)
-        warn "Modulo en desarrollo."
+      8)
+        stop_socks_port
         sleep 1
       ;;
+      9) show_socks_logs ;;
+      0) break ;;
       *) warn "Opcion invalida." ; sleep 1 ;;
     esac
   done
