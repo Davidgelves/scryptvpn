@@ -39,6 +39,9 @@ XRAY_INTERNAL_PORT=10000
 DOMAIN=
 EMAIL=
 XRAY_UUID=
+SOCKS_PORT=88
+SOCKS_REDIRECT_PORT=22
+SOCKS_RESPONSE_STATUS=101
 EOF
 }
 
@@ -57,6 +60,9 @@ XRAY_INTERNAL_PORT=${XRAY_INTERNAL_PORT}
 DOMAIN=${DOMAIN}
 EMAIL=${EMAIL}
 XRAY_UUID=${XRAY_UUID}
+SOCKS_PORT=${SOCKS_PORT}
+SOCKS_REDIRECT_PORT=${SOCKS_REDIRECT_PORT}
+SOCKS_RESPONSE_STATUS=${SOCKS_RESPONSE_STATUS}
 EOF
 }
 
@@ -366,6 +372,7 @@ show_connection_info() {
   echo "SSH: ${SSH_PORT}"
   echo "Nginx: ${NGINX_HTTP_PORT}/${NGINX_HTTPS_PORT}   Estado: $(service_status nginx)"
   echo "Xray interno: ${XRAY_INTERNAL_PORT}   Estado: $(service_status xray)"
+  echo "SOCKS Python: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
   echo "IP publica: ${ip_public}"
   echo "Dominio: ${DOMAIN:-NO CONFIGURADO}"
   echo "--------------------------------------------------------"
@@ -379,6 +386,74 @@ show_connection_info() {
   read -r -p "Enter para volver..."
 }
 
+configure_socks_python2() {
+  local opt manual_port status_in
+  load_state
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
+  echo "========================================================"
+  echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+  echo "--------------------------------------------------------"
+  echo "A QUE PUERTO SERA REDIRIGIDO EL TRAFICO?"
+  echo
+  echo "[1] > python2...............................8080"
+  echo "[2] > sshd..................................22"
+  echo "[3] > v2ray.................................443"
+  echo "[4] > v2ray.................................80"
+  echo
+  echo "[0] CANCELAR                [5] INGRESA MANUALMENTE"
+  echo "--------------------------------------------------------"
+  read -r -p "Ingresa una opcion: " opt
+
+  case "${opt}" in
+    1) SOCKS_REDIRECT_PORT=8080 ;;
+    2) SOCKS_REDIRECT_PORT=22 ;;
+    3) SOCKS_REDIRECT_PORT=443 ;;
+    4) SOCKS_REDIRECT_PORT=80 ;;
+    5)
+      read -r -p "Ingresa puerto manual de redireccion: " manual_port
+      if ! [[ "${manual_port}" =~ ^[0-9]+$ ]] || (( manual_port < 1 || manual_port > 65535 )); then
+        err "Puerto manual invalido."
+        sleep 1
+        return 1
+      fi
+      SOCKS_REDIRECT_PORT="${manual_port}"
+    ;;
+    0) return 0 ;;
+    *) warn "Opcion invalida."; sleep 1; return 1 ;;
+  esac
+
+  if [[ "${SOCKS_REDIRECT_PORT}" == "443" || "${SOCKS_REDIRECT_PORT}" == "80" ]]; then
+    clear
+    echo "========================================================"
+    echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
+    echo "========================================================"
+    echo "PUERTO PARA SOCKS PYTHON: ${SOCKS_PORT}"
+    echo
+    echo "TRAFICO REDIRIGIDO AL PUERTO: ${SOCKS_REDIRECT_PORT}"
+    echo
+    echo "Enter aplica configuracion predeterminada (200)"
+    echo "101 para websocket"
+    echo
+    read -r -p "IGRESA UN ESTADO DE RESPUESTA: " status_in
+    if [[ -z "${status_in}" ]]; then
+      SOCKS_RESPONSE_STATUS=200
+    elif [[ "${status_in}" =~ ^[0-9]+$ ]] && (( status_in >= 100 && status_in <= 599 )); then
+      SOCKS_RESPONSE_STATUS="${status_in}"
+    else
+      warn "Estado invalido. Se usa 200."
+      SOCKS_RESPONSE_STATUS=200
+    fi
+  else
+    SOCKS_RESPONSE_STATUS=200
+  fi
+
+  save_state
+  log "SOCKS configurado: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
+  read -r -p "Enter para volver..."
+}
+
 protocol_menu() {
   while true; do
     load_state
@@ -387,11 +462,13 @@ protocol_menu() {
     echo "              ADMINISTRADOR DE PROTOCOLOS"
     echo "========================================================"
     echo "SSH: ${SSH_PORT} | NGINX: ${NGINX_HTTP_PORT}/${NGINX_HTTPS_PORT} | XRAY: ${XRAY_INTERNAL_PORT}"
+    echo "SOCKS: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
     echo "--------------------------------------------------------"
     echo "[1] AJUSTES SSH"
     echo "[2] INSTALAR/ACTUALIZAR NGINX"
     echo "[3] CONFIGURAR XRAY (V2RAY) + WS + SSL"
-    echo "[4] MOSTRAR DATOS DE CONEXION"
+    echo "[4] CONFIGURAR SOCKS PYTHON2 DIRECTO"
+    echo "[5] MOSTRAR DATOS DE CONEXION"
     echo "[0] VOLVER"
     echo "--------------------------------------------------------"
     read -r -p "Ingresa una opcion: " opt
@@ -399,7 +476,8 @@ protocol_menu() {
       1) configure_ssh_port ;;
       2) install_base_packages ;;
       3) configure_xray_vless_ws ;;
-      4) show_connection_info ;;
+      4) configure_socks_python2 ;;
+      5) show_connection_info ;;
       0) break ;;
       *) warn "Opcion invalida." ; sleep 1 ;;
     esac
