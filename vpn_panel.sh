@@ -48,6 +48,7 @@ NGINX_ENABLED=0
 SOCKS_PY2_SIMPLE_ENABLED=0
 SOCKS_PY3_SIMPLE_ENABLED=0
 SOCKS_PY3_DIRECT_ENABLED=0
+INITIAL_HARDENED=0
 EOF
 }
 
@@ -71,6 +72,7 @@ load_state() {
   SOCKS_PY2_SIMPLE_ENABLED="${SOCKS_PY2_SIMPLE_ENABLED:-0}"
   SOCKS_PY3_SIMPLE_ENABLED="${SOCKS_PY3_SIMPLE_ENABLED:-0}"
   SOCKS_PY3_DIRECT_ENABLED="${SOCKS_PY3_DIRECT_ENABLED:-0}"
+  INITIAL_HARDENED="${INITIAL_HARDENED:-0}"
 }
 
 save_state() {
@@ -91,6 +93,7 @@ NGINX_ENABLED=${NGINX_ENABLED}
 SOCKS_PY2_SIMPLE_ENABLED=${SOCKS_PY2_SIMPLE_ENABLED}
 SOCKS_PY3_SIMPLE_ENABLED=${SOCKS_PY3_SIMPLE_ENABLED}
 SOCKS_PY3_DIRECT_ENABLED=${SOCKS_PY3_DIRECT_ENABLED}
+INITIAL_HARDENED=${INITIAL_HARDENED}
 EOF
 }
 
@@ -113,6 +116,29 @@ refresh_socks_global_status() {
   else
     SOCKS_ENABLED=0
   fi
+}
+
+enforce_only_ssh_on_first_install() {
+  # En primera ejecucion: solo SSH activo por defecto.
+  if [[ "${INITIAL_HARDENED}" != "0" ]]; then
+    return 0
+  fi
+
+  systemctl stop nginx 2>/dev/null || true
+  systemctl disable nginx 2>/dev/null || true
+  systemctl stop xray 2>/dev/null || true
+  systemctl disable xray 2>/dev/null || true
+  systemctl stop vpn-socks-python2-direct 2>/dev/null || true
+  systemctl disable vpn-socks-python2-direct 2>/dev/null || true
+
+  NGINX_ENABLED=0
+  XRAY_ENABLED=0
+  SOCKS_ENABLED=0
+  SOCKS_PY2_SIMPLE_ENABLED=0
+  SOCKS_PY3_SIMPLE_ENABLED=0
+  SOCKS_PY3_DIRECT_ENABLED=0
+  INITIAL_HARDENED=1
+  save_state
 }
 
 setup_socks_forward_service() {
@@ -780,6 +806,7 @@ extras_menu() {
 main_menu() {
   while true; do
     load_state
+    enforce_only_ssh_on_first_install
     clear
     echo "========================================================"
     echo "                     J DAVID AG"
