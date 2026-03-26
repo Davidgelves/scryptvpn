@@ -258,6 +258,19 @@ require_cmd() {
   }
 }
 
+detect_ssh_port() {
+  local detected=""
+  if [[ -f /etc/ssh/sshd_config ]]; then
+    detected="$(awk '/^[[:space:]]*Port[[:space:]]+[0-9]+/{print $2; exit}' /etc/ssh/sshd_config)"
+  fi
+  if [[ -z "${detected}" ]]; then
+    detected="$(ss -tlpn 2>/dev/null | awk '/sshd/ && /LISTEN/ {split($4,a,":"); print a[length(a)]; exit}')"
+  fi
+  if [[ -n "${detected}" && "${detected}" =~ ^[0-9]+$ ]]; then
+    SSH_PORT="${detected}"
+  fi
+}
+
 install_base_packages() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
@@ -578,6 +591,7 @@ show_connection_info() {
 configure_socks_python2() {
   local opt manual_port status_in input_port custom_header_in
   load_state
+  detect_ssh_port
   ensure_socks_runtime
   clear
   echo "========================================================"
@@ -603,7 +617,7 @@ configure_socks_python2() {
   echo "A QUE PUERTO SERA REDIRIGIDO EL TRAFICO?"
   echo
   echo "[1] > python2...............................8080"
-  echo "[2] > sshd..................................22"
+  echo "[2] > sshd..................................${SSH_PORT}"
   echo "[3] > v2ray.................................443"
   echo "[4] > v2ray.................................80"
   echo
@@ -613,7 +627,7 @@ configure_socks_python2() {
 
   case "${opt}" in
     1) SOCKS_REDIRECT_PORT=8080 ;;
-    2) SOCKS_REDIRECT_PORT=22 ;;
+    2) SOCKS_REDIRECT_PORT="${SSH_PORT}" ;;
     3) SOCKS_REDIRECT_PORT=443 ;;
     4) SOCKS_REDIRECT_PORT=80 ;;
     5)
@@ -703,6 +717,7 @@ configure_socks_python2() {
 configure_socks_python3_direct() {
   local opt manual_port status_in input_port custom_header_in
   load_state
+  detect_ssh_port
   ensure_socks_runtime
   clear
   echo "========================================================"
@@ -728,7 +743,7 @@ configure_socks_python3_direct() {
   echo "A QUE PUERTO SERA REDIRIGIDO EL TRAFICO?"
   echo
   echo "[1] > python2...............................8080"
-  echo "[2] > sshd..................................22"
+  echo "[2] > sshd..................................${SSH_PORT}"
   echo "[3] > v2ray.................................443"
   echo "[4] > v2ray.................................80"
   echo
@@ -738,7 +753,7 @@ configure_socks_python3_direct() {
 
   case "${opt}" in
     1) SOCKS_REDIRECT_PORT=8080 ;;
-    2) SOCKS_REDIRECT_PORT=22 ;;
+    2) SOCKS_REDIRECT_PORT="${SSH_PORT}" ;;
     3) SOCKS_REDIRECT_PORT=443 ;;
     4) SOCKS_REDIRECT_PORT=80 ;;
     5)
