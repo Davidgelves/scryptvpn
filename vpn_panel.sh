@@ -115,6 +115,36 @@ refresh_socks_global_status() {
   fi
 }
 
+setup_socks_forward_service() {
+  local listen_port="$1"
+  local target_port="$2"
+  local service_name="vpn-socks-python2-direct"
+  local service_file="/etc/systemd/system/${service_name}.service"
+
+  apt-get update -y
+  apt-get install -y socat python3 python3-pip || true
+  apt-get install -y python2-minimal || true
+
+  cat > "${service_file}" <<EOF
+[Unit]
+Description=SOCKS Python2 Direct Forward
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/socat TCP-LISTEN:${listen_port},reuseaddr,fork TCP:127.0.0.1:${target_port}
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+  systemctl enable "${service_name}"
+  systemctl restart "${service_name}"
+}
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
     err "No se encontro comando requerido: $1"
@@ -442,6 +472,7 @@ show_connection_info() {
 configure_socks_python2() {
   local opt manual_port status_in
   load_state
+  SOCKS_PORT=80
   clear
   echo "========================================================"
   echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
@@ -502,6 +533,7 @@ configure_socks_python2() {
     SOCKS_RESPONSE_STATUS=200
   fi
 
+  setup_socks_forward_service "${SOCKS_PORT}" "${SOCKS_REDIRECT_PORT}"
   SOCKS_ENABLED=1
   refresh_socks_global_status
   socks_log "SOCKS PYTHON2 DIRECTO ON puerto=${SOCKS_PORT} destino=${SOCKS_REDIRECT_PORT} status=${SOCKS_RESPONSE_STATUS}"
