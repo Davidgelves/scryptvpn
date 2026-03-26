@@ -730,7 +730,11 @@ xray_menu() {
     echo "XRAY no esta instalado."
     read -r -p "Deseas instalar XRAY ahora? (si/no): " install_now
     if [[ "${install_now}" == "si" ]]; then
-      configure_xray_vless_ws
+      install_xray
+      XRAY_ENABLED=1
+      save_state
+      log "XRAY instalado. Ahora configura dominio desde [1] o [12]."
+      sleep 1
     else
       warn "Instalacion cancelada."
       sleep 1
