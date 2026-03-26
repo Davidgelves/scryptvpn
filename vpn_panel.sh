@@ -124,6 +124,18 @@ refresh_socks_global_status() {
   fi
 }
 
+socks_ports_display() {
+  local p1="--"
+  local p2="--"
+  if [[ "${SOCKS_PY2_SIMPLE_ENABLED}" == "1" || "${SOCKS_PY3_SIMPLE_ENABLED}" == "1" ]]; then
+    p1="8080"
+  fi
+  if [[ "${SOCKS_ENABLED}" == "1" || "${SOCKS_PY3_DIRECT_ENABLED}" == "1" ]]; then
+    p2="${SOCKS_PORT}"
+  fi
+  printf "%s %s" "${p1}" "${p2}"
+}
+
 enforce_only_ssh_on_first_install() {
   # En primera ejecucion: solo SSH activo por defecto.
   if [[ "${INITIAL_HARDENED}" != "0" ]]; then
@@ -822,7 +834,7 @@ socks_python_menu() {
     echo "========================================================"
     echo "             ADMINISTRADOR DE SOCKS PYTHON"
     echo "========================================================"
-    echo "PUERTOS: 8080 ${SOCKS_PORT}"
+    echo "PUERTOS: $(socks_ports_display)"
     echo "--------------------------------------------------------"
     echo "[1] SOCKS PYTHON2 SIMPLE   $(on_off "${SOCKS_PY2_SIMPLE_ENABLED}")"
     echo "[2] SOCKS PYTHON3 SIMPLE   $(on_off "${SOCKS_PY3_SIMPLE_ENABLED}")"
