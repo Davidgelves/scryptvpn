@@ -282,6 +282,142 @@ install_base_packages() {
   log "Paquetes base instalados."
 }
 
+nginx_apply_ports() {
+  local cfg="${NGINX_SITE}"
+  if [[ "${NGINX_HTTP_PORT}" == "0" && "${NGINX_HTTPS_PORT}" == "0" ]]; then
+    rm -f /etc/nginx/sites-enabled/vpn-panel.conf
+    return 0
+  fi
+
+  cat > "${cfg}" <<EOF
+server {
+EOF
+  if [[ "${NGINX_HTTP_PORT}" != "0" ]]; then
+    cat >> "${cfg}" <<EOF
+    listen ${NGINX_HTTP_PORT};
+EOF
+  fi
+  if [[ "${NGINX_HTTPS_PORT}" != "0" ]]; then
+    cat >> "${cfg}" <<EOF
+    listen ${NGINX_HTTPS_PORT} ssl http2;
+    ssl_certificate /etc/ssl/certs/ssl-cert-snakeoil.pem;
+    ssl_certificate_key /etc/ssl/private/ssl-cert-snakeoil.key;
+EOF
+  fi
+  cat >> "${cfg}" <<'EOF'
+    server_name _;
+    location / {
+        return 200 "NGINX ACTIVO\n";
+    }
+}
+EOF
+
+  ln -sf "${cfg}" /etc/nginx/sites-enabled/vpn-panel.conf
+  rm -f /etc/nginx/sites-enabled/default
+  nginx -t
+  systemctl restart nginx
+}
+
+nginx_add_port() {
+  local p
+  read -r -p "Puerto a anadir: " p
+  if ! [[ "${p}" =~ ^[0-9]+$ ]] || (( p < 1 || p > 65535 )); then
+    err "Puerto invalido."
+    return 1
+  fi
+  if [[ "${p}" == "${NGINX_HTTP_PORT}" || "${p}" == "${NGINX_HTTPS_PORT}" ]]; then
+    warn "Ese puerto ya esta agregado."
+    return 0
+  fi
+  if [[ "${NGINX_HTTP_PORT}" == "0" ]]; then
+    NGINX_HTTP_PORT="${p}"
+  elif [[ "${NGINX_HTTPS_PORT}" == "0" ]]; then
+    NGINX_HTTPS_PORT="${p}"
+  else
+    warn "Ya hay 2 puertos. Reemplazando HTTPS por ${p}."
+    NGINX_HTTPS_PORT="${p}"
+  fi
+  NGINX_ENABLED=1
+  nginx_apply_ports
+  save_state
+  log "Puerto agregado a NGINX: ${p}"
+}
+
+nginx_delete_one_port() {
+  local p
+  read -r -p "Puerto a borrar: " p
+  [[ -z "${p}" ]] && { err "Puerto requerido."; return 1; }
+  if [[ "${p}" == "${NGINX_HTTP_PORT}" ]]; then
+    NGINX_HTTP_PORT=0
+  elif [[ "${p}" == "${NGINX_HTTPS_PORT}" ]]; then
+    NGINX_HTTPS_PORT=0
+  else
+    warn "Ese puerto no esta activo en NGINX."
+    return 0
+  fi
+  if [[ "${NGINX_HTTP_PORT}" == "0" && "${NGINX_HTTPS_PORT}" == "0" ]]; then
+    NGINX_ENABLED=0
+    systemctl stop nginx || true
+  else
+    nginx_apply_ports
+  fi
+  save_state
+  log "Puerto eliminado de NGINX: ${p}"
+}
+
+nginx_delete_all_ports() {
+  NGINX_HTTP_PORT=0
+  NGINX_HTTPS_PORT=0
+  NGINX_ENABLED=0
+  rm -f /etc/nginx/sites-enabled/vpn-panel.conf
+  systemctl stop nginx || true
+  save_state
+  log "Todos los puertos NGINX eliminados."
+}
+
+nginx_uninstall() {
+  systemctl stop nginx || true
+  systemctl disable nginx || true
+  apt-get remove -y nginx nginx-common || true
+  apt-get autoremove -y || true
+  NGINX_ENABLED=0
+  NGINX_HTTP_PORT=0
+  NGINX_HTTPS_PORT=0
+  rm -f "${NGINX_SITE}" /etc/nginx/sites-enabled/vpn-panel.conf
+  save_state
+  warn "NGINX desinstalado."
+}
+
+nginx_menu() {
+  while true; do
+    load_state
+    clear
+    echo "========================================================"
+    echo "                    MENU NGINX"
+    echo "========================================================"
+    echo "Estado: $(on_off "${NGINX_ENABLED}")"
+    echo "Puertos activos: ${NGINX_HTTP_PORT} ${NGINX_HTTPS_PORT}"
+    echo "--------------------------------------------------------"
+    echo "[1] INSTALAR/ACTIVAR NGINX"
+    echo "[2] ANADIR PUERTO"
+    echo "[3] BORRAR 1 PUERTO"
+    echo "[4] BORRAR TODOS LOS PUERTOS"
+    echo "[5] DESINSTALAR NGINX"
+    echo "[0] VOLVER"
+    echo "--------------------------------------------------------"
+    read -r -p "Ingresa una opcion: " opt
+    case "${opt}" in
+      1) install_base_packages ; nginx_apply_ports ; read -r -p "Enter para continuar..." ;;
+      2) nginx_add_port ; read -r -p "Enter para continuar..." ;;
+      3) nginx_delete_one_port ; read -r -p "Enter para continuar..." ;;
+      4) nginx_delete_all_ports ; read -r -p "Enter para continuar..." ;;
+      5) nginx_uninstall ; read -r -p "Enter para continuar..." ;;
+      0) break ;;
+      *) warn "Opcion invalida." ; sleep 1 ;;
+    esac
+  done
+}
+
 configure_ssh_port() {
   read -r -p "Puerto SSH (actual ${SSH_PORT}): " new_ssh_port
   [[ -z "${new_ssh_port}" ]] && new_ssh_port="${SSH_PORT}"
@@ -991,7 +1127,7 @@ protocol_menu() {
     case "${opt}" in
       1) configure_ssh_port ;;
       3) socks_python_menu ;;
-      4) install_base_packages ;;
+      4) nginx_menu ;;
       15) configure_xray_vless_ws ;;
       19) show_connection_info ;;
       0) break ;;
