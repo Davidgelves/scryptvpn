@@ -389,6 +389,26 @@ nginx_uninstall() {
 }
 
 nginx_menu() {
+  load_state
+  if ! command -v nginx >/dev/null 2>&1; then
+    local install_now
+    clear
+    echo "========================================================"
+    echo "                    MENU NGINX"
+    echo "========================================================"
+    echo "NGINX no esta instalado."
+    read -r -p "Deseas instalar NGINX ahora? (si/no): " install_now
+    if [[ "${install_now}" == "si" ]]; then
+      install_base_packages
+      nginx_apply_ports
+      read -r -p "Enter para continuar..."
+    else
+      warn "Instalacion cancelada."
+      sleep 1
+      return 0
+    fi
+  fi
+
   while true; do
     load_state
     clear
@@ -398,7 +418,7 @@ nginx_menu() {
     echo "Estado: $(on_off "${NGINX_ENABLED}")"
     echo "Puertos activos: ${NGINX_HTTP_PORT} ${NGINX_HTTPS_PORT}"
     echo "--------------------------------------------------------"
-    echo "[1] INSTALAR/ACTIVAR NGINX"
+    echo "[1] REINSTALAR/ACTIVAR NGINX"
     echo "[2] ANADIR PUERTO"
     echo "[3] BORRAR 1 PUERTO"
     echo "[4] BORRAR TODOS LOS PUERTOS"
