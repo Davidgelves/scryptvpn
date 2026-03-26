@@ -977,14 +977,13 @@ protocol_menu() {
     echo "[1] AJUSTES SSH         [ON]   [10] SQUID             [OFF]"
     echo "[2] DROPBEAR            [OFF]  [11] OPENVPN           [OFF]"
     echo "[3] SOCKS PYTHON        $(on_off "${SOCKS_ENABLED}")   [12] CHECKUSER ONLINE  [OFF]"
-    echo "[4] STUNNEL (SSL)       $(on_off "${NGINX_ENABLED}")   [13] ATKEN and HASH    [OFF]"
+    echo "[4] NGINX               $(on_off "${NGINX_ENABLED}")   [13] ATKEN and HASH    [OFF]"
     echo "[5] SLOWDNS             [OFF]  [14] FILEBROWSER       [OFF]"
     echo "[6] WS-EPRO             [OFF]  [15] V2RAY/XRAY        $(on_off "${XRAY_ENABLED}")"
     echo "[7] UDP-CUSTOM          [OFF]  [16] SSHGO             [OFF]"
     echo "[8] UDP-HYSTERIA        [OFF]  [17] WIREGUARD         [OFF]"
     echo "[9] BADVPN-UDPGW        [OFF]"
     echo
-    echo "[18] INSTALAR/ACTUALIZAR NGINX"
     echo "[19] MOSTRAR DATOS DE CONEXION"
     echo "[0] VOLVER"
     echo "--------------------------------------------------------"
@@ -992,11 +991,11 @@ protocol_menu() {
     case "${opt}" in
       1) configure_ssh_port ;;
       3) socks_python_menu ;;
+      4) install_base_packages ;;
       15) configure_xray_vless_ws ;;
-      18) install_base_packages ;;
       19) show_connection_info ;;
       0) break ;;
-      2|4|5|6|7|8|9|10|11|12|13|14|16|17)
+      2|5|6|7|8|9|10|11|12|13|14|16|17|18)
         warn "Modulo en desarrollo."
         sleep 1
       ;;
