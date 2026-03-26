@@ -136,6 +136,13 @@ socks_ports_display() {
   printf "%s %s" "${p1}" "${p2}"
 }
 
+has_active_socks_ports() {
+  if [[ "${SOCKS_PY2_SIMPLE_ENABLED}" == "1" || "${SOCKS_PY3_SIMPLE_ENABLED}" == "1" || "${SOCKS_ENABLED}" == "1" || "${SOCKS_PY3_DIRECT_ENABLED}" == "1" ]]; then
+    return 0
+  fi
+  return 1
+}
+
 enforce_only_ssh_on_first_install() {
   # En primera ejecucion: solo SSH activo por defecto.
   if [[ "${INITIAL_HARDENED}" != "0" ]]; then
@@ -834,7 +841,9 @@ socks_python_menu() {
     echo "========================================================"
     echo "             ADMINISTRADOR DE SOCKS PYTHON"
     echo "========================================================"
-    echo "PUERTOS: $(socks_ports_display)"
+    if has_active_socks_ports; then
+      echo "PUERTOS: $(socks_ports_display)"
+    fi
     echo "--------------------------------------------------------"
     echo "[1] SOCKS PYTHON2 SIMPLE   $(on_off "${SOCKS_PY2_SIMPLE_ENABLED}")"
     echo "[2] SOCKS PYTHON3 SIMPLE   $(on_off "${SOCKS_PY3_SIMPLE_ENABLED}")"
