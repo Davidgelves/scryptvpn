@@ -37,6 +37,9 @@ NGINX_HTTP_PORT=80
 NGINX_HTTPS_PORT=443
 XRAY_INTERNAL_PORT=10000
 XRAY_PROFILE_NAME=Bokn
+XRAY_CORE_TYPE=xray
+XRAY_PROTOCOL=vless
+XRAY_NETWORK=ws
 DOMAIN=
 EMAIL=
 XRAY_UUID=
@@ -64,6 +67,9 @@ load_state() {
   NGINX_HTTPS_PORT="${NGINX_HTTPS_PORT:-443}"
   XRAY_INTERNAL_PORT="${XRAY_INTERNAL_PORT:-10000}"
   XRAY_PROFILE_NAME="${XRAY_PROFILE_NAME:-Bokn}"
+  XRAY_CORE_TYPE="${XRAY_CORE_TYPE:-xray}"
+  XRAY_PROTOCOL="${XRAY_PROTOCOL:-vless}"
+  XRAY_NETWORK="${XRAY_NETWORK:-ws}"
   DOMAIN="${DOMAIN:-}"
   EMAIL="${EMAIL:-}"
   XRAY_UUID="${XRAY_UUID:-}"
@@ -88,6 +94,9 @@ NGINX_HTTP_PORT=${NGINX_HTTP_PORT}
 NGINX_HTTPS_PORT=${NGINX_HTTPS_PORT}
 XRAY_INTERNAL_PORT=${XRAY_INTERNAL_PORT}
 XRAY_PROFILE_NAME=${XRAY_PROFILE_NAME}
+XRAY_CORE_TYPE=${XRAY_CORE_TYPE}
+XRAY_PROTOCOL=${XRAY_PROTOCOL}
+XRAY_NETWORK=${XRAY_NETWORK}
 DOMAIN=${DOMAIN}
 EMAIL=${EMAIL}
 XRAY_UUID=${XRAY_UUID}
@@ -587,7 +596,7 @@ install_xray() {
 }
 
 configure_xray_vless_ws() {
-  local profile_name_in
+  local profile_name_in core_opt core_label xray_port_in domain_in email_in proto_opt proto_label net_opt net_label
   clear
   echo "========================================================"
   echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
@@ -598,14 +607,91 @@ configure_xray_vless_ws() {
   else
     XRAY_PROFILE_NAME="${profile_name_in}"
   fi
+  clear
+  echo "========================================================"
+  echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
+  echo "========================================================"
+  echo "NOMBRE: ${XRAY_PROFILE_NAME}"
+  echo "--------------------------------------------------------"
+  echo "[1] V2RAY"
+  echo "[2] XRAY"
+  echo "--------------------------------------------------------"
+  read -r -p "Ingresa una Opcion: " core_opt
+  case "${core_opt}" in
+    1) XRAY_CORE_TYPE="v2ray"; core_label="v2ray" ;;
+    2) XRAY_CORE_TYPE="xray"; core_label="xray" ;;
+    *) warn "Opcion invalida."; sleep 1; return 1 ;;
+  esac
+
+  clear
+  echo "========================================================"
+  echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
+  echo "========================================================"
+  echo "NOMBRE: ${XRAY_PROFILE_NAME}"
+  echo
+  echo "TIPO: ${core_label}"
+  echo "--------------------------------------------------------"
+  read -r -p "INGRESA EL PUERTO: " xray_port_in
+  [[ -z "${xray_port_in}" ]] && xray_port_in="${XRAY_INTERNAL_PORT}"
+
+  clear
+  echo "========================================================"
+  echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
+  echo "========================================================"
+  echo "NOMBRE: ${XRAY_PROFILE_NAME}"
+  echo
+  echo "TIPO: ${core_label}"
+  echo
+  echo "PUERTO: ${xray_port_in}"
+  echo "--------------------------------------------------------"
+  echo "[1] VMESS"
+  echo "[2] VLESS"
+  echo "[3] SOCKS"
+  echo "[4] TROJAN"
+  echo "[5] HYSTERIA2"
+  echo "--------------------------------------------------------"
+  read -r -p "Ingresa una Opcion: " proto_opt
+  case "${proto_opt}" in
+    1) XRAY_PROTOCOL="vmess"; proto_label="vmess" ;;
+    2) XRAY_PROTOCOL="vless"; proto_label="vless" ;;
+    3) XRAY_PROTOCOL="socks"; proto_label="socks" ;;
+    4) XRAY_PROTOCOL="trojan"; proto_label="trojan" ;;
+    5) XRAY_PROTOCOL="hysteria2"; proto_label="hysteria2" ;;
+    *) warn "Opcion invalida."; sleep 1; return 1 ;;
+  esac
+
+  clear
+  echo "========================================================"
+  echo "           NUEVA CONFIGURACION V2RAY Y XRAY"
+  echo "========================================================"
+  echo "NOMBRE: ${XRAY_PROFILE_NAME}"
+  echo
+  echo "TIPO: ${core_label}"
+  echo
+  echo "PUERTO: ${xray_port_in}"
+  echo
+  echo "PROTOCOLO: ${XRAY_PROTOCOL}"
+  echo "--------------------------------------------------------"
+  echo "[1] RED TCP"
+  echo "[2] RED GRPC"
+  echo "[3] RED WEBSOCKET"
+  echo "[4] RED H2 (HTTP2)"
+  echo "[5] RED HYSTERIA2"
+  echo "--------------------------------------------------------"
+  read -r -p "Ingresa una Opcion: " net_opt
+  case "${net_opt}" in
+    1) XRAY_NETWORK="tcp"; net_label="tcp" ;;
+    2) XRAY_NETWORK="grpc"; net_label="grpc" ;;
+    3) XRAY_NETWORK="ws"; net_label="websocket" ;;
+    4) XRAY_NETWORK="h2"; net_label="h2" ;;
+    5) XRAY_NETWORK="hysteria2"; net_label="hysteria2" ;;
+    *) warn "Opcion invalida."; sleep 1; return 1 ;;
+  esac
 
   read -r -p "Dominio para SSL/WebSocket (ej. vpn.tudominio.com): " domain_in
   read -r -p "Correo para Let's Encrypt: " email_in
-  read -r -p "Puerto interno Xray (actual ${XRAY_INTERNAL_PORT}): " xray_port_in
-
   [[ -z "${domain_in}" ]] && { err "Dominio requerido."; return 1; }
   [[ -z "${email_in}" ]] && { err "Correo requerido."; return 1; }
-  [[ -z "${xray_port_in}" ]] && xray_port_in="${XRAY_INTERNAL_PORT}"
 
   if ! [[ "${xray_port_in}" =~ ^[0-9]+$ ]] || (( xray_port_in < 1 || xray_port_in > 65535 )); then
     err "Puerto interno invalido."
@@ -631,7 +717,7 @@ configure_xray_vless_ws() {
     {
       "port": ${XRAY_INTERNAL_PORT},
       "listen": "127.0.0.1",
-      "protocol": "vless",
+      "protocol": "${XRAY_PROTOCOL}",
       "settings": {
         "clients": [
           {
@@ -642,10 +728,10 @@ configure_xray_vless_ws() {
         "decryption": "none"
       },
       "streamSettings": {
-        "network": "ws",
+        "network": "${XRAY_NETWORK}",
         "security": "none",
         "wsSettings": {
-          "path": "/vless"
+          "path": "/${XRAY_PROTOCOL}"
         }
       }
     }
@@ -727,7 +813,7 @@ EOF
   XRAY_ENABLED=1
   NGINX_ENABLED=1
   save_state
-  log "Xray + WebSocket + SSL configurado."
+  log "Xray(${proto_label}/${net_label}) + SSL configurado."
 }
 
 xray_log_size_mb() {
@@ -872,7 +958,7 @@ show_connection_info() {
   echo "--------------------------------------------------------"
   if [[ -n "${XRAY_UUID:-}" && -n "${DOMAIN:-}" ]]; then
     echo "URL VLESS sugerida:"
-    echo "vless://${XRAY_UUID}@${DOMAIN}:${NGINX_HTTPS_PORT}?encryption=none&security=tls&type=ws&host=${DOMAIN}&path=%2Fvless#${XRAY_PROFILE_NAME}"
+    echo "${XRAY_PROTOCOL}://${XRAY_UUID}@${DOMAIN}:${NGINX_HTTPS_PORT}?encryption=none&security=tls&type=${XRAY_NETWORK}&host=${DOMAIN}&path=%2F${XRAY_PROTOCOL}#${XRAY_PROFILE_NAME}"
   else
     echo "Aun no hay perfil VLESS generado."
   fi
