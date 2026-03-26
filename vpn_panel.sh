@@ -470,9 +470,23 @@ show_connection_info() {
 }
 
 configure_socks_python2() {
-  local opt manual_port status_in
+  local opt manual_port status_in input_port
   load_state
-  SOCKS_PORT=80
+  clear
+  echo "========================================================"
+  echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
+  echo "========================================================"
+  read -r -p "INGRESA EL PUERTO: " input_port
+  if [[ -z "${input_port}" ]]; then
+    input_port=80
+  fi
+  if ! [[ "${input_port}" =~ ^[0-9]+$ ]] || (( input_port < 1 || input_port > 65535 )); then
+    err "Puerto invalido."
+    sleep 1
+    return 1
+  fi
+  SOCKS_PORT="${input_port}"
+
   clear
   echo "========================================================"
   echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
