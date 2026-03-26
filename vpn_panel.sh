@@ -145,6 +145,26 @@ EOF
   systemctl restart "${service_name}"
 }
 
+ensure_socks_runtime() {
+  local need_install=0
+
+  if ! command -v socat >/dev/null 2>&1; then
+    need_install=1
+  fi
+  if ! command -v python3 >/dev/null 2>&1; then
+    need_install=1
+  fi
+
+  if [[ "${need_install}" == "1" ]]; then
+    warn "Dependencias SOCKS no encontradas. Instalando..."
+    apt-get update -y
+    apt-get install -y socat python3 python3-pip || true
+    apt-get install -y python2-minimal || true
+    socks_log "Dependencias SOCKS instaladas automaticamente"
+    log "Dependencias SOCKS instaladas."
+  fi
+}
+
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
     err "No se encontro comando requerido: $1"
@@ -472,6 +492,7 @@ show_connection_info() {
 configure_socks_python2() {
   local opt manual_port status_in input_port
   load_state
+  ensure_socks_runtime
   clear
   echo "========================================================"
   echo "         CONFIGURAR SOCKS PYTHON2 DIRECTO"
