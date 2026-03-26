@@ -40,6 +40,7 @@ XRAY_PROFILE_NAME=Bokn
 XRAY_CORE_TYPE=xray
 XRAY_PROTOCOL=vless
 XRAY_NETWORK=ws
+XRAY_WS_PATH=/vless
 DOMAIN=
 EMAIL=
 XRAY_UUID=
@@ -70,6 +71,7 @@ load_state() {
   XRAY_CORE_TYPE="${XRAY_CORE_TYPE:-xray}"
   XRAY_PROTOCOL="${XRAY_PROTOCOL:-vless}"
   XRAY_NETWORK="${XRAY_NETWORK:-ws}"
+  XRAY_WS_PATH="${XRAY_WS_PATH:-/vless}"
   DOMAIN="${DOMAIN:-}"
   EMAIL="${EMAIL:-}"
   XRAY_UUID="${XRAY_UUID:-}"
@@ -97,6 +99,7 @@ XRAY_PROFILE_NAME=${XRAY_PROFILE_NAME}
 XRAY_CORE_TYPE=${XRAY_CORE_TYPE}
 XRAY_PROTOCOL=${XRAY_PROTOCOL}
 XRAY_NETWORK=${XRAY_NETWORK}
+XRAY_WS_PATH=${XRAY_WS_PATH}
 DOMAIN=${DOMAIN}
 EMAIL=${EMAIL}
 XRAY_UUID=${XRAY_UUID}
@@ -126,6 +129,10 @@ on_off() {
 random_profile_name() {
   # Nombre corto aleatorio para perfiles V2Ray/Xray.
   printf "Bokn%s" "$(tr -dc 'a-z0-9' </dev/urandom | head -c 4)"
+}
+
+random_ws_path() {
+  printf "/%s" "$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 8)"
 }
 
 socks_log() {
@@ -689,9 +696,9 @@ configure_xray_vless_ws() {
   esac
 
   read -r -p "Dominio para SSL/WebSocket (ej. vpn.tudominio.com): " domain_in
-  read -r -p "Correo para Let's Encrypt: " email_in
   [[ -z "${domain_in}" ]] && { err "Dominio requerido."; return 1; }
-  [[ -z "${email_in}" ]] && { err "Correo requerido."; return 1; }
+  email_in="admin@${domain_in}"
+  XRAY_WS_PATH="$(random_ws_path)"
 
   if ! [[ "${xray_port_in}" =~ ^[0-9]+$ ]] || (( xray_port_in < 1 || xray_port_in > 65535 )); then
     err "Puerto interno invalido."
@@ -731,7 +738,7 @@ configure_xray_vless_ws() {
         "network": "${XRAY_NETWORK}",
         "security": "none",
         "wsSettings": {
-          "path": "/${XRAY_PROTOCOL}"
+          "path": "${XRAY_WS_PATH}"
         }
       }
     }
@@ -958,7 +965,9 @@ show_connection_info() {
   echo "--------------------------------------------------------"
   if [[ -n "${XRAY_UUID:-}" && -n "${DOMAIN:-}" ]]; then
     echo "URL VLESS sugerida:"
-    echo "${XRAY_PROTOCOL}://${XRAY_UUID}@${DOMAIN}:${NGINX_HTTPS_PORT}?encryption=none&security=tls&type=${XRAY_NETWORK}&host=${DOMAIN}&path=%2F${XRAY_PROTOCOL}#${XRAY_PROFILE_NAME}"
+    local enc_path
+    enc_path="$(printf '%s' "${XRAY_WS_PATH}" | sed 's#/#%2F#g')"
+    echo "${XRAY_PROTOCOL}://${XRAY_UUID}@${DOMAIN}:${NGINX_HTTPS_PORT}?encryption=none&security=tls&type=${XRAY_NETWORK}&host=${DOMAIN}&path=${enc_path}#${XRAY_PROFILE_NAME}"
   else
     echo "Aun no hay perfil VLESS generado."
   fi
