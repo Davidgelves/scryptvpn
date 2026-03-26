@@ -85,7 +85,7 @@ configure_ssh_port() {
   fi
 
   if [[ -f /etc/ssh/sshd_config ]]; then
-    if rg -q "^#?Port " /etc/ssh/sshd_config; then
+    if grep -Eq "^#?Port " /etc/ssh/sshd_config; then
       sed -i "s/^#\?Port .*/Port ${new_ssh_port}/" /etc/ssh/sshd_config
     else
       echo "Port ${new_ssh_port}" >> /etc/ssh/sshd_config
@@ -96,6 +96,117 @@ configure_ssh_port() {
   SSH_PORT="${new_ssh_port}"
   save_state
   log "SSH configurado en puerto ${SSH_PORT}."
+}
+
+set_ssh_user_limit() {
+  local user_name="$1"
+  local max_sessions="$2"
+  mkdir -p /etc/security/limits.d
+  cat > "/etc/security/limits.d/vpn-${user_name}.conf" <<EOF
+${user_name} hard maxlogins ${max_sessions}
+${user_name} soft maxlogins ${max_sessions}
+EOF
+}
+
+create_ssh_user() {
+  local user_name password days limit expire_date
+
+  read -r -p "Usuario SSH: " user_name
+  read -r -p "Contrasena: " password
+  read -r -p "Dias de duracion (ej. 30): " days
+  read -r -p "Limite de conexiones simultaneas (ej. 1): " limit
+
+  if [[ -z "${user_name}" || -z "${password}" || -z "${days}" || -z "${limit}" ]]; then
+    err "Todos los campos son obligatorios."
+    return 1
+  fi
+
+  if id "${user_name}" >/dev/null 2>&1; then
+    err "El usuario ya existe."
+    return 1
+  fi
+
+  if ! [[ "${days}" =~ ^[0-9]+$ ]] || (( days < 1 )); then
+    err "Dias invalidos."
+    return 1
+  fi
+
+  if ! [[ "${limit}" =~ ^[0-9]+$ ]] || (( limit < 1 )); then
+    err "Limite invalido."
+    return 1
+  fi
+
+  expire_date="$(date -d "+${days} days" +%Y-%m-%d)"
+  useradd -e "${expire_date}" -s /bin/false -M "${user_name}"
+  echo "${user_name}:${password}" | chpasswd
+  set_ssh_user_limit "${user_name}" "${limit}"
+
+  # Asegura PAM para que maxlogins aplique en SSH.
+  if grep -Eq '^#?UsePAM' /etc/ssh/sshd_config; then
+    sed -i 's/^#\?UsePAM.*/UsePAM yes/' /etc/ssh/sshd_config
+  else
+    echo "UsePAM yes" >> /etc/ssh/sshd_config
+  fi
+  systemctl restart ssh || systemctl restart sshd || true
+
+  log "Usuario SSH creado: ${user_name}"
+  echo "Usuario : ${user_name}"
+  echo "Clave   : ${password}"
+  echo "Expira  : ${expire_date}"
+  echo "Limite  : ${limit} conexion(es)"
+}
+
+list_ssh_users() {
+  echo "========================================================"
+  echo "USUARIO              EXPIRACION           LIMITE"
+  echo "========================================================"
+  while IFS=: read -r user_name _ uid _ _ _ shell; do
+    if (( uid >= 1000 )) && [[ "${shell}" == "/bin/false" || "${shell}" == "/usr/sbin/nologin" ]]; then
+      local exp limit_line limit_val
+      exp="$(chage -l "${user_name}" 2>/dev/null | awk -F': ' '/Account expires/{print $2}')"
+      limit_line="$(grep -Eh "^[[:space:]]*${user_name}[[:space:]]+hard[[:space:]]+maxlogins" /etc/security/limits.d/vpn-"${user_name}".conf 2>/dev/null || true)"
+      limit_val="$(awk '{print $4}' <<< "${limit_line}")"
+      [[ -z "${limit_val}" ]] && limit_val="sin limite"
+      printf "%-20s %-20s %s\n" "${user_name}" "${exp:-N/A}" "${limit_val}"
+    fi
+  done < /etc/passwd
+  echo "========================================================"
+  read -r -p "Enter para volver..."
+}
+
+delete_ssh_user() {
+  local user_name
+  read -r -p "Usuario a eliminar: " user_name
+  [[ -z "${user_name}" ]] && { err "Usuario requerido."; return 1; }
+  if ! id "${user_name}" >/dev/null 2>&1; then
+    err "Usuario no existe."
+    return 1
+  fi
+  userdel "${user_name}" || true
+  rm -f "/etc/security/limits.d/vpn-${user_name}.conf"
+  log "Usuario eliminado: ${user_name}"
+}
+
+ssh_accounts_menu() {
+  while true; do
+    clear
+    echo "========================================================"
+    echo "         ADMINISTRAR CUENTAS (SSH/DROPBEAR)"
+    echo "========================================================"
+    echo "[1] CREAR USUARIO SSH"
+    echo "[2] LISTAR USUARIOS SSH"
+    echo "[3] ELIMINAR USUARIO SSH"
+    echo "[0] VOLVER"
+    echo "--------------------------------------------------------"
+    read -r -p "Ingresa una opcion: " opt
+    case "${opt}" in
+      1) create_ssh_user; read -r -p "Enter para continuar..." ;;
+      2) list_ssh_users ;;
+      3) delete_ssh_user; read -r -p "Enter para continuar..." ;;
+      0) break ;;
+      *) warn "Opcion invalida." ; sleep 1 ;;
+    esac
+  done
 }
 
 install_xray() {
@@ -334,7 +445,7 @@ main_menu() {
     echo "S.O: $(grep PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '"')"
     echo "Fecha: $(date +%d-%m-%Y)   Hora: $(date +%H:%M:%S)"
     echo "--------------------------------------------------------"
-    echo "[1] ADMINISTRAR CUENTAS (SSH/DROPBEAR) [proximo]"
+    echo "[1] ADMINISTRAR CUENTAS (SSH/DROPBEAR)"
     echo "[2] ADMINISTRAR CUENTAS (V2RAY/XRAY)   [proximo]"
     echo "[3] CONFIGURACION DE PROTOCOLOS"
     echo "[4] HERRAMIENTAS EXTRAS"
@@ -357,7 +468,8 @@ main_menu() {
         fi
       ;;
       0) exit 0 ;;
-      1|2|5|6) warn "Opcion en desarrollo." ; sleep 1 ;;
+      1) ssh_accounts_menu ;;
+      2|5|6) warn "Opcion en desarrollo." ; sleep 1 ;;
       *) warn "Opcion invalida." ; sleep 1 ;;
     esac
   done
