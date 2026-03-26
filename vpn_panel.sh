@@ -710,6 +710,126 @@ EOF
   log "Xray + WebSocket + SSL configurado."
 }
 
+xray_log_size_mb() {
+  local f1="/var/log/xray/access.log"
+  local f2="/var/log/xray/error.log"
+  local bytes=0
+  [[ -f "${f1}" ]] && bytes=$((bytes + $(wc -c < "${f1}")))
+  [[ -f "${f2}" ]] && bytes=$((bytes + $(wc -c < "${f2}")))
+  awk -v b="${bytes}" 'BEGIN { printf "%.2fMB", b/1024/1024 }'
+}
+
+xray_menu() {
+  load_state
+  if ! command -v xray >/dev/null 2>&1; then
+    local install_now
+    clear
+    echo "========================================================"
+    echo "              ADMINISTRADOR V2RAY Y XRAY"
+    echo "========================================================"
+    echo "XRAY no esta instalado."
+    read -r -p "Deseas instalar XRAY ahora? (si/no): " install_now
+    if [[ "${install_now}" == "si" ]]; then
+      configure_xray_vless_ws
+    else
+      warn "Instalacion cancelada."
+      sleep 1
+      return 0
+    fi
+  fi
+
+  while true; do
+    load_state
+    clear
+    echo "========================================================"
+    echo "              ADMINISTRADOR V2RAY Y XRAY"
+    echo "========================================================"
+    echo "[1] AGREGAR PROTOCOLO V2RAY/XRAY"
+    echo "[2] QUITAR PROTOCOLO V2RAY/XRAY"
+    echo
+    echo "[3] VER CONFIGURACION JSON"
+    echo "[4] EDITAR CONFIGURACION JSON (nano)"
+    echo
+    echo "[5] CONTROL DE TRAFICO $(on_off "0")"
+    echo
+    echo "[6] LOG ACCESS/ERROR $(xray_log_size_mb)"
+    echo "[7] LOG EN TIEMPO REAL"
+    echo "[8] TODO EL LOG"
+    echo
+    echo "[9] ESTADO DEL SERVICIO"
+    echo "[10] REINICIAR SERVICIO"
+    echo "[11] INICIAR/PARAR SERVICIOS $(on_off "${XRAY_ENABLED}")"
+    echo
+    echo "[0] VOLVER        [12] RECONFIGURAR        [13] DESINSTALAR"
+    echo "--------------------------------------------------------"
+    read -r -p "Ingresa una opcion: " opt
+    case "${opt}" in
+      1|12) configure_xray_vless_ws ; read -r -p "Enter para continuar..." ;;
+      2) warn "Modulo en desarrollo." ; sleep 1 ;;
+      3)
+        [[ -f "${XRAY_CONFIG}" ]] && less "${XRAY_CONFIG}" || warn "No existe config JSON."
+      ;;
+      4)
+        command -v nano >/dev/null 2>&1 || apt-get install -y nano
+        nano "${XRAY_CONFIG}"
+      ;;
+      5) warn "Control de trafico en desarrollo." ; sleep 1 ;;
+      6)
+        echo "Tamanio de logs: $(xray_log_size_mb)"
+        read -r -p "Enter para volver..."
+      ;;
+      7)
+        if [[ -f /var/log/xray/access.log || -f /var/log/xray/error.log ]]; then
+          tail -f /var/log/xray/access.log /var/log/xray/error.log
+        else
+          warn "No hay logs disponibles."
+          sleep 1
+        fi
+      ;;
+      8)
+        [[ -f /var/log/xray/access.log ]] && less /var/log/xray/access.log || true
+        [[ -f /var/log/xray/error.log ]] && less /var/log/xray/error.log || true
+      ;;
+      9)
+        echo "xray: $(service_status xray)"
+        systemctl status xray --no-pager -l || true
+        read -r -p "Enter para volver..."
+      ;;
+      10)
+        systemctl restart xray || true
+        XRAY_ENABLED=1
+        save_state
+        log "Servicio xray reiniciado."
+        sleep 1
+      ;;
+      11)
+        if [[ "${XRAY_ENABLED}" == "1" ]]; then
+          systemctl stop xray || true
+          XRAY_ENABLED=0
+          warn "Xray detenido."
+        else
+          systemctl start xray || true
+          XRAY_ENABLED=1
+          log "Xray iniciado."
+        fi
+        save_state
+        sleep 1
+      ;;
+      13)
+        systemctl stop xray || true
+        systemctl disable xray || true
+        bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge || true
+        XRAY_ENABLED=0
+        save_state
+        warn "XRAY desinstalado."
+        sleep 1
+      ;;
+      0) break ;;
+      *) warn "Opcion invalida." ; sleep 1 ;;
+    esac
+  done
+}
+
 service_status() {
   local svc="$1"
   if systemctl is-active --quiet "${svc}"; then
@@ -1166,7 +1286,7 @@ protocol_menu() {
       1) configure_ssh_port ;;
       3) socks_python_menu ;;
       4) nginx_menu ;;
-      15) configure_xray_vless_ws ;;
+      15) xray_menu ;;
       19) show_connection_info ;;
       0) break ;;
       2|5|6|7|8|9|10|11|12|13|14|16|17|18)
