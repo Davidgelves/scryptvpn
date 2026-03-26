@@ -461,24 +461,36 @@ protocol_menu() {
     echo "========================================================"
     echo "              ADMINISTRADOR DE PROTOCOLOS"
     echo "========================================================"
-    echo "SSH: ${SSH_PORT} | NGINX: ${NGINX_HTTP_PORT}/${NGINX_HTTPS_PORT} | XRAY: ${XRAY_INTERNAL_PORT}"
-    echo "SOCKS: ${SOCKS_PORT} -> ${SOCKS_REDIRECT_PORT} (status ${SOCKS_RESPONSE_STATUS})"
+    echo "BADVPN: 7300                 PYTHON2: 8080 ${SOCKS_PORT}"
+    echo "SLOWDNS: 5300                SSH: ${SSH_PORT}"
+    echo "UDP-HYSTERIA: 36712          V2RAY: 443 80"
     echo "--------------------------------------------------------"
-    echo "[1] AJUSTES SSH"
-    echo "[2] INSTALAR/ACTUALIZAR NGINX"
-    echo "[3] CONFIGURAR XRAY (V2RAY) + WS + SSL"
-    echo "[4] CONFIGURAR SOCKS PYTHON2 DIRECTO"
-    echo "[5] MOSTRAR DATOS DE CONEXION"
+    echo "[1] AJUSTES SSH         [ON]   [10] SQUID             [OFF]"
+    echo "[2] DROPBEAR            [OFF]  [11] OPENVPN           [OFF]"
+    echo "[3] SOCKS PYTHON        [ON]   [12] CHECKUSER ONLINE  [OFF]"
+    echo "[4] STUNNEL (SSL)       [OFF]  [13] ATKEN and HASH    [OFF]"
+    echo "[5] SLOWDNS             [ON]   [14] FILEBROWSER       [OFF]"
+    echo "[6] WS-EPRO             [OFF]  [15] V2RAY/XRAY        [ON]"
+    echo "[7] UDP-CUSTOM          [OFF]  [16] SSHGO             [OFF]"
+    echo "[8] UDP-HYSTERIA        [ON]   [17] WIREGUARD         [OFF]"
+    echo "[9] BADVPN-UDPGW        [ON]"
+    echo
+    echo "[18] INSTALAR/ACTUALIZAR NGINX"
+    echo "[19] MOSTRAR DATOS DE CONEXION"
     echo "[0] VOLVER"
     echo "--------------------------------------------------------"
     read -r -p "Ingresa una opcion: " opt
     case "${opt}" in
       1) configure_ssh_port ;;
-      2) install_base_packages ;;
-      3) configure_xray_vless_ws ;;
-      4) configure_socks_python2 ;;
-      5) show_connection_info ;;
+      3) configure_socks_python2 ;;
+      15) configure_xray_vless_ws ;;
+      18) install_base_packages ;;
+      19) show_connection_info ;;
       0) break ;;
+      2|4|5|6|7|8|9|10|11|12|13|14|16|17)
+        warn "Modulo en desarrollo."
+        sleep 1
+      ;;
       *) warn "Opcion invalida." ; sleep 1 ;;
     esac
   done
