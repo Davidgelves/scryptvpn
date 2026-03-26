@@ -716,7 +716,8 @@ configure_xray_vless_ws() {
   echo "HOST WEBSOCKET: ${domain_in}"
   echo "--------------------------------------------------------"
   read -r -p "usar este path rand? ${XRAY_WS_PATH} [S/N]: " use_rand_path
-  if [[ "${use_rand_path}" == "n" || "${use_rand_path}" == "N" ]]; then
+  use_rand_path="$(printf '%s' "${use_rand_path}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "${use_rand_path}" == "n" || "${use_rand_path}" == "no" ]]; then
     read -r -p "Ingresa path personalizado (ej. /miws): " custom_path_in
     if [[ -z "${custom_path_in}" ]]; then
       XRAY_WS_PATH="${XRAY_WS_PATH}"
@@ -726,6 +727,10 @@ configure_xray_vless_ws() {
       fi
       XRAY_WS_PATH="${custom_path_in}"
     fi
+  elif [[ -z "${use_rand_path}" || "${use_rand_path}" == "s" || "${use_rand_path}" == "si" || "${use_rand_path}" == "y" || "${use_rand_path}" == "yes" ]]; then
+    : # Usa el path random por defecto
+  else
+    warn "Respuesta no valida. Se usa path random por defecto."
   fi
 
   if ! [[ "${xray_port_in}" =~ ^[0-9]+$ ]] || (( xray_port_in < 1 || xray_port_in > 65535 )); then
