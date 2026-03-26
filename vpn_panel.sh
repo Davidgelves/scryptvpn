@@ -143,6 +143,41 @@ has_active_socks_ports() {
   return 1
 }
 
+protocol_header_lines() {
+  local entries=()
+  local i=0
+  local left right
+
+  # Solo mostrar protocolos activos.
+  if systemctl is-active --quiet ssh || systemctl is-active --quiet sshd; then
+    entries+=("SSH: ${SSH_PORT}")
+  fi
+  if has_active_socks_ports; then
+    entries+=("PYTHON2: $(socks_ports_display)")
+  fi
+  if [[ "${XRAY_ENABLED}" == "1" ]]; then
+    entries+=("V2RAY: 443 80")
+  fi
+  if [[ "${NGINX_ENABLED}" == "1" ]]; then
+    entries+=("STUNNEL: ${NGINX_HTTP_PORT} ${NGINX_HTTPS_PORT}")
+  fi
+
+  if (( ${#entries[@]} == 0 )); then
+    echo "No hay protocolos activos."
+    return 0
+  fi
+
+  while (( i < ${#entries[@]} )); do
+    left="${entries[$i]}"
+    right=""
+    if (( i + 1 < ${#entries[@]} )); then
+      right="${entries[$((i + 1))]}"
+    fi
+    printf "%-28s %s\n" "${left}" "${right}"
+    i=$((i + 2))
+  done
+}
+
 enforce_only_ssh_on_first_install() {
   # En primera ejecucion: solo SSH activo por defecto.
   if [[ "${INITIAL_HARDENED}" != "0" ]]; then
@@ -922,9 +957,7 @@ protocol_menu() {
     echo "========================================================"
     echo "              ADMINISTRADOR DE PROTOCOLOS"
     echo "========================================================"
-    echo "BADVPN: 7300                 PYTHON2: 8080 ${SOCKS_PORT}"
-    echo "SLOWDNS: 5300                SSH: ${SSH_PORT}"
-    echo "UDP-HYSTERIA: 36712          V2RAY: 443 80"
+    protocol_header_lines
     echo "--------------------------------------------------------"
     echo "[1] AJUSTES SSH         [ON]   [10] SQUID             [OFF]"
     echo "[2] DROPBEAR            [OFF]  [11] OPENVPN           [OFF]"
