@@ -1471,6 +1471,51 @@ extras_menu() {
   done
 }
 
+uninstall_panel_full() {
+  local confirm_full
+  read -r -p "Desinstalar TODO lo instalado por este panel? (si/no): " confirm_full
+  if [[ "${confirm_full}" != "si" ]]; then
+    warn "Desinstalacion cancelada."
+    sleep 1
+    return 0
+  fi
+
+  # Detener y deshabilitar servicios manejados por el panel.
+  systemctl stop vpn-socks-python2-direct 2>/dev/null || true
+  systemctl disable vpn-socks-python2-direct 2>/dev/null || true
+  rm -f /etc/systemd/system/vpn-socks-python2-direct.service
+
+  systemctl stop xray 2>/dev/null || true
+  systemctl disable xray 2>/dev/null || true
+  rm -f /etc/systemd/system/xray.service
+
+  systemctl stop nginx 2>/dev/null || true
+  systemctl disable nginx 2>/dev/null || true
+
+  # Quitar paquetes principales instalados por el panel.
+  apt-get remove -y xray nginx nginx-common certbot python3-certbot-nginx socat 2>/dev/null || true
+  apt-get autoremove -y 2>/dev/null || true
+
+  # Limpiar configuraciones y logs.
+  rm -rf /usr/local/etc/xray
+  rm -f /etc/nginx/sites-enabled/vpn-panel.conf
+  rm -f /etc/nginx/sites-available/vpn-panel.conf
+  rm -f /var/log/vpn-panel-socks.log
+  rm -rf /var/log/xray
+  rm -rf "${STATE_DIR}"
+
+  # Eliminar accesos del panel.
+  rm -f /usr/local/sbin/menu
+  rm -f /usr/local/sbin/vpn_panel
+  rm -f /usr/local/sbin/updatevpn
+
+  systemctl daemon-reload
+  log "Panel y componentes instalados eliminados."
+  warn "La sesion actual puede seguir abierta, pero el comando menu ya no existira."
+  sleep 2
+  exit 0
+}
+
 main_menu() {
   while true; do
     load_state
@@ -1496,14 +1541,7 @@ main_menu() {
     case "${opt}" in
       3) protocol_menu ;;
       4) extras_menu ;;
-      7)
-        read -r -p "Confirmar desinstalacion del panel (si/no): " confirm
-        if [[ "${confirm}" == "si" ]]; then
-          rm -f "${STATE_FILE}"
-          warn "Panel desinstalado (se conservaron servicios instalados)."
-          sleep 1
-        fi
-      ;;
+      7) uninstall_panel_full ;;
       0) exit 0 ;;
       1) ssh_accounts_menu ;;
       2|5|6) warn "Opcion en desarrollo." ; sleep 1 ;;
